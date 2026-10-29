@@ -509,6 +509,7 @@ pub(crate) async fn route_specctra_dsn(
         max_passes,
         optimizer_enabled: args["optimizer_enabled"].as_bool(),
         job_timeout_seconds,
+        optimize_seconds: args["optimize_seconds"].as_u64(),
         poll_interval: std::time::Duration::from_secs(3),
         overall_timeout: std::time::Duration::from_secs(overall_timeout_seconds),
     };
@@ -541,7 +542,8 @@ pub(crate) async fn route_specctra_dsn(
         "final_state": evidence.final_state,
         "poll_count": evidence.poll_count,
         "elapsed_seconds": evidence.elapsed_seconds,
-        "ses_bytes": evidence.ses_bytes
+        "ses_bytes": evidence.ses_bytes,
+        "last_activity": evidence.last_activity
     })))
 }
 
