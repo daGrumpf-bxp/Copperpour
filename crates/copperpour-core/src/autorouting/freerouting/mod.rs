@@ -523,6 +523,7 @@ pub(crate) async fn route_specctra_dsn(
                 .collect()
         }),
         plane_as_obstacle: args["plane_as_obstacle"].as_bool(),
+        router_settings: args["router_settings"].as_object().cloned(),
         poll_interval: std::time::Duration::from_secs(3),
         overall_timeout: std::time::Duration::from_secs(overall_timeout_seconds),
     };
@@ -556,7 +557,9 @@ pub(crate) async fn route_specctra_dsn(
         "poll_count": evidence.poll_count,
         "elapsed_seconds": evidence.elapsed_seconds,
         "ses_bytes": evidence.ses_bytes,
-        "last_activity": evidence.last_activity
+        "last_activity": evidence.last_activity,
+        "settings_not_applied": evidence.settings_not_applied,
+        "settings_warnings": evidence.settings_warnings
     })))
 }
 
