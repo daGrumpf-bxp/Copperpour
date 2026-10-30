@@ -504,7 +504,13 @@ pub(crate) async fn route_specctra_dsn(
         .transpose()
         .map_err(|_| anyhow::anyhow!("max_passes is too large"))?;
     let job_timeout_seconds = args["job_timeout_seconds"].as_u64();
-    let overall_timeout_seconds = args["overall_timeout_seconds"].as_u64().unwrap_or(900);
+    // The optimizer window opens only once routing is done: a default that
+    // ignored it killed a run 900 s in, with the optimizer still inside the
+    // optimize_seconds it had been given.
+    let overall_timeout_seconds = args["overall_timeout_seconds"].as_u64().unwrap_or_else(|| {
+        let optimize = args["optimize_seconds"].as_u64().unwrap_or(0);
+        900u64.saturating_add(optimize).min(86_400)
+    });
     let settings = mcp::RouteSettings {
         max_passes,
         optimizer_enabled: args["optimizer_enabled"].as_bool(),
