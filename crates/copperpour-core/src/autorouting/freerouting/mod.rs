@@ -474,6 +474,38 @@ pub(crate) async fn check_freerouting(
 }
 
 /// The `route_specctra_dsn` tool, which `integration`'s handler delegates to.
+/// The KiCad project whose design rules apply to a DSN: `project_path` when
+/// given, else the only `.kicad_pro` in the DSN's folder, else in its parent
+/// (a `route/` subfolder is common). None when there is none or several.
+fn route_project(args: &serde_json::Value, dsn: &Path) -> anyhow::Result<Option<PathBuf>> {
+    if args
+        .get("project_path")
+        .is_some_and(|value| !value.is_null())
+    {
+        let project = get_path(args, "project_path")?;
+        if !project.is_file() {
+            anyhow::bail!("project_path is not a file: {}", project.display());
+        }
+        return Ok(Some(project));
+    }
+    let folder = dsn.parent().unwrap_or_else(|| Path::new("."));
+    for dir in [Some(folder), folder.parent()].into_iter().flatten() {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            continue;
+        };
+        let projects: Vec<PathBuf> = entries
+            .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+            .filter(|path| path.extension().is_some_and(|ext| ext == "kicad_pro"))
+            .collect();
+        match projects.len() {
+            0 => continue,
+            1 => return Ok(projects.into_iter().next()),
+            _ => return Ok(None),
+        }
+    }
+    Ok(None)
+}
+
 pub(crate) async fn route_specctra_dsn(
     args: &serde_json::Value,
     _ctx: &ToolContext,
@@ -511,6 +543,19 @@ pub(crate) async fn route_specctra_dsn(
         let optimize = args["optimize_seconds"].as_u64().unwrap_or(0);
         900u64.saturating_add(optimize).min(86_400)
     });
+    // Freerouting does not find these rules in the DSN; without them it
+    // routes to its own defaults, or with none at all through its job API.
+    let project = route_project(args, &dsn)?;
+    let project_rules = match &project {
+        Some(path) => {
+            let content = std::fs::read_to_string(path)
+                .map_err(|error| anyhow::anyhow!("read {}: {error}", path.display()))?;
+            let parsed: serde_json::Value = serde_json::from_str(&content)
+                .map_err(|error| anyhow::anyhow!("parse {}: {error}", path.display()))?;
+            mcp::project_route_rules(&parsed)
+        }
+        None => serde_json::Map::new(),
+    };
     let settings = mcp::RouteSettings {
         max_passes,
         optimizer_enabled: args["optimizer_enabled"].as_bool(),
@@ -530,6 +575,7 @@ pub(crate) async fn route_specctra_dsn(
         }),
         plane_as_obstacle: args["plane_as_obstacle"].as_bool(),
         router_settings: args["router_settings"].as_object().cloned(),
+        project_rules: project_rules.clone(),
         poll_interval: std::time::Duration::from_secs(3),
         overall_timeout: std::time::Duration::from_secs(overall_timeout_seconds),
     };
@@ -579,7 +625,12 @@ pub(crate) async fn route_specctra_dsn(
         "ses_bytes": evidence.ses_bytes,
         "last_activity": evidence.last_activity,
         "settings_not_applied": evidence.settings_not_applied,
-        "settings_warnings": evidence.settings_warnings
+        "settings_warnings": evidence.settings_warnings,
+        "project_rules": {
+            "project_path": project,
+            "sent": project_rules,
+            "not_applied": evidence.project_rules_not_applied
+        }
     })))
 }
 
