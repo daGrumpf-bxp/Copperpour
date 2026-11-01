@@ -552,7 +552,10 @@ pub(crate) async fn route_specctra_dsn(
                 .map_err(|error| anyhow::anyhow!("read {}: {error}", path.display()))?;
             let parsed: serde_json::Value = serde_json::from_str(&content)
                 .map_err(|error| anyhow::anyhow!("parse {}: {error}", path.display()))?;
-            mcp::project_route_rules(&parsed)
+            mcp::project_route_rules(
+                &parsed,
+                args["neck_to_min_track_width"].as_bool().unwrap_or(false),
+            )
         }
         None => serde_json::Map::new(),
     };
