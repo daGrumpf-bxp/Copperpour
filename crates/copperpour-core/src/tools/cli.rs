@@ -23,7 +23,7 @@ use tracing::{debug, info, warn};
 /// Default timeout for long operations (export, ERC, DRC), in seconds.
 pub const DEFAULT_LONG_TIMEOUT_SECS: u64 = 600;
 
-/// Timeout for long operations, set once at startup from the `kicad_cli_timeout_secs`
+/// Timeout for long operations, set once at startup from the `kicad_cli_timeout_seconds`
 /// setting. A full DRC of a large board with creepage rules can need more than the default,
 /// all the more on a loaded machine.
 static LONG_TIMEOUT_SECS: AtomicU64 = AtomicU64::new(DEFAULT_LONG_TIMEOUT_SECS);
