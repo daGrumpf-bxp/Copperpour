@@ -625,7 +625,9 @@ fn route_response(
         "elapsed_seconds": evidence.elapsed_seconds,
         "ses_bytes": evidence.ses_bytes,
         "last_activity": evidence.last_activity,
-        "settings_not_applied": evidence.settings_not_applied,
+        // Kept for callers that read it: a setting Freerouting did not apply
+        // now fails the call before routing, so a routed board has none.
+        "settings_not_applied": [],
         "settings_warnings": evidence.settings_warnings
     })
 }
@@ -652,7 +654,6 @@ mod freerouting_tests {
             diagnostics_path: None,
             last_activity: Some("pass 30: 3 unrouted, 218 violations".into()),
             unrouted,
-            settings_not_applied: Vec::new(),
             settings_warnings: Vec::new(),
         }
     }
@@ -688,6 +689,14 @@ mod freerouting_tests {
         assert_eq!(body["success"], true, "{body}");
         assert_eq!(body["unrouted_connections"], 0, "{body}");
         assert!(body["message"].is_null(), "{body}");
+    }
+
+    /// Settings Freerouting did not apply fail the call before routing, so a
+    /// routed board has none; the key stays for callers that read it.
+    #[test]
+    fn a_routed_board_keeps_an_empty_settings_not_applied() {
+        let body = respond(Some(0));
+        assert_eq!(body["settings_not_applied"], json!([]), "{body}");
     }
 
     /// A count that could not be read from the log is unknown, not a failure.
